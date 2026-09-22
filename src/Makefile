@@ -1,30 +1,42 @@
-# src/Makefile — compiles all .c files directly and links into bin/client
-# (Feature 2: baseline, no library yet)
+# src/Makefile — Feature 3: build a static library and link against it
 
 CC       = gcc
 CFLAGS   = -Wall -Wextra -g -I../include
-SRC_DIR  = .
 OBJ_DIR  = ../obj
 BIN_DIR  = ../bin
-TARGET   = $(BIN_DIR)/client
+LIB_DIR  = ../lib
 
-SRCS = mystrfunctions.c myfilefunctions.c main.c
-OBJS = $(SRCS:%.c=$(OBJ_DIR)/%.o)
+LIB_NAME    = myutils
+STATIC_LIB  = $(LIB_DIR)/lib$(LIB_NAME).a
+TARGET_STATIC = $(BIN_DIR)/client_static
 
-.PHONY: all clean
+LIB_SRCS = mystrfunctions.c myfilefunctions.c
+LIB_OBJS = $(LIB_SRCS:%.c=$(OBJ_DIR)/%.o)
 
-all: $(TARGET)
+MAIN_SRC = main.c
+MAIN_OBJ = $(OBJ_DIR)/main.o
 
-# Linking rule: link ALL object files directly into the executable
-$(TARGET): $(OBJS)
+.PHONY: all static clean
+
+all: static
+
+static: $(TARGET_STATIC)
+
+# 1. Build the static library from the library object files
+$(STATIC_LIB): $(LIB_OBJS)
+	@mkdir -p $(LIB_DIR)
+	ar rcs $(STATIC_LIB) $(LIB_OBJS)
+	@echo "Static library built: $(STATIC_LIB)"
+
+# 2. Link main.o against the static library
+$(TARGET_STATIC): $(MAIN_OBJ) $(STATIC_LIB)
 	@mkdir -p $(BIN_DIR)
-	$(CC) $(OBJS) -o $(TARGET)
-	@echo "Build complete: $(TARGET)"
+	$(CC) $(MAIN_OBJ) -L$(LIB_DIR) -l$(LIB_NAME) -o $(TARGET_STATIC)
+	@echo "Static executable built: $(TARGET_STATIC)"
 
-# Pattern rule: compile any .c into a .o inside obj/
-$(OBJ_DIR)/%.o: $(SRC_DIR)/%.c
+$(OBJ_DIR)/%.o: %.c
 	@mkdir -p $(OBJ_DIR)
 	$(CC) $(CFLAGS) -c $< -o $@
 
 clean:
-	rm -f $(OBJ_DIR)/*.o $(TARGET)
+	rm -f $(OBJ_DIR)/*.o $(STATIC_LIB) $(TARGET_STATIC)
